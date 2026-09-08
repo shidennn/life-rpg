@@ -1,90 +1,77 @@
-const defaultState = {
-  name: 'Maya', xp: 0, level: 1, streak: 0,
-  stats: { strength: 2, intelligence: 3, creativity: 2, vitality: 2 },
-  quests: [
-    { id: 1, title: 'Move your body for 20 minutes', category: 'daily', xp: 20, stats: ['strength', 'vitality'], completed: false },
-    { id: 2, title: 'Read or learn something new', category: 'daily', xp: 15, stats: ['intelligence'], completed: false },
-    { id: 3, title: 'Practise your instrument', category: 'short', xp: 30, stats: ['creativity'], completed: false },
-    { id: 4, title: 'Plan a weekend adventure', category: 'short', xp: 25, stats: ['creativity', 'vitality'], completed: false },
-    { id: 5, title: 'Finish a personal project', category: 'long', xp: 100, stats: ['intelligence', 'creativity'], completed: false }
-  ]
-};
-
+const difficultyXp = { trivial: 5, easy: 15, normal: 25, hard: 45, epic: 80, legendary: 140 };
 const statInfo = {
-  strength: { label: 'Strength', symbol: '↗' }, intelligence: { label: 'Intelligence', symbol: '⌁' },
-  creativity: { label: 'Creativity', symbol: '✦' }, vitality: { label: 'Vitality', symbol: '◒' }
+  strength: { label: 'Strength', symbol: '↗', description: 'Exercise, sports, physical challenges, and movement.' },
+  intelligence: { label: 'Intelligence', symbol: '⌁', description: 'Learning, studying, coding, reading, and problem solving.' },
+  creativity: { label: 'Creativity', symbol: '✦', description: 'Making music, writing, design, art, and creative practice.' },
+  vitality: { label: 'Vitality', symbol: '◒', description: 'Sleep, nutrition, recovery, mindfulness, and time outdoors.' }
 };
 const categoryLabels = { daily: 'Daily quest', short: 'Short term quest', long: 'Long term quest' };
-let state = loadState();
+const defaultState = {
+  name: 'Maya', xp: 0, level: 1, streak: 0, lastActiveDate: null, completionHistory: [], historyTracking: false, gold: 0, achievements: { test: false },
+  stats: { strength: { level: 2, xp: 0 }, intelligence: { level: 3, xp: 0 }, creativity: { level: 2, xp: 0 }, vitality: { level: 2, xp: 0 } },
+  quests: [
+    { id: 1, title: 'Move your body for 20 minutes', category: 'daily', difficulty: 'easy', xp: 20, stats: ['strength', 'vitality'], completed: false },
+    { id: 2, title: 'Read or learn something new', category: 'daily', difficulty: 'easy', xp: 15, stats: ['intelligence'], completed: false },
+    { id: 3, title: 'Practise your instrument', category: 'short', difficulty: 'normal', xp: 30, stats: ['creativity'], completed: false },
+    { id: 4, title: 'Plan a weekend adventure', category: 'short', difficulty: 'normal', xp: 25, stats: ['creativity', 'vitality'], completed: false },
+    { id: 5, title: 'Finish a personal project', category: 'long', difficulty: 'epic', xp: 100, stats: ['intelligence', 'creativity'], completed: false }
+  ]
+};
 let activeFilter = 'all';
-
 const $ = (selector) => document.querySelector(selector);
-const escapeHtml = (value) => value.replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' }[char]));
+const setText = (selector, value) => { const element = $(selector); if (element) element.textContent = value; };
+const clone = (value) => structuredClone(value);
+const escapeHtml = (value) => value.replace(/[&<>'"]/g, (char) => ({ '&': '&#38;', '<': '&#60;', '>': '&#62;', "'": '&#039;', '"': '&#34;' }[char]));
 
-function loadState() {
-  try { return JSON.parse(localStorage.getItem('life-rpg-state')) || structuredClone(defaultState); }
-  catch { return structuredClone(defaultState); }
+function statXpRequired(level) { return Math.round(35 + (level * 18) + (level * level * 2.5)); }
+function characterXpRequired(level) { return level * 100; }
+function getDifficultyXp(difficulty) { return difficultyXp[difficulty] || difficultyXp.normal; }
+function allocateStatXp(totalXp, stats) { const selected = stats.length ? stats : ['vitality']; const base = Math.floor(totalXp / selected.length); const remainder = totalXp % selected.length; return Object.fromEntries(selected.map((stat, index) => [stat, base + (index < remainder ? 1 : 0)])); }
+function normalizeState(raw) {
+  const next = { ...clone(defaultState), ...raw, stats: {}, completionHistory: Array.isArray(raw.completionHistory) ? raw.completionHistory : [], historyTracking: Boolean(raw.historyTracking || raw.completionHistory?.length), achievements: { ...defaultState.achievements, ...(raw.achievements || {}) } };
+  Object.entries(defaultState.stats).forEach(([key, fallback]) => { const saved = raw.stats?.[key]; next.stats[key] = typeof saved === 'number' ? { level: Math.max(1, saved), xp: 0 } : { level: Math.max(1, saved?.level || fallback.level), xp: Math.max(0, saved?.xp || 0) }; });
+  next.quests = (raw.quests || clone(defaultState.quests)).map((quest) => { const stats = quest.stats?.length ? quest.stats : ['vitality']; const xp = Number(quest.xp) || getDifficultyXp(quest.difficulty || 'normal'); return { ...quest, difficulty: quest.difficulty || 'normal', xp, stats, statAllocations: quest.statAllocations || allocateStatXp(xp, stats) }; });
+  return next;
 }
-function saveState() {
-  localStorage.setItem('life-rpg-state', JSON.stringify(state));
-  $('#saveStatus').textContent = 'Saved just now';
-  setTimeout(() => { $('#saveStatus').textContent = 'Saved locally'; }, 1600);
-}
-function xpGoal() { return state.level * 100; }
+function loadState() { try { return normalizeState(JSON.parse(localStorage.getItem('life-rpg-state')) || clone(defaultState)); } catch { return clone(defaultState); } }
+let state = loadState();
+function saveState() { localStorage.setItem('life-rpg-state', JSON.stringify(state)); setText('#saveStatus', 'Saved just now'); setTimeout(() => setText('#saveStatus', 'Saved locally'), 1600); }
+function addCharacterXp(amount) { state.xp += amount; while (state.xp >= characterXpRequired(state.level)) { state.xp -= characterXpRequired(state.level); state.level += 1; } while (state.level > 1 && state.xp < 0) { state.level -= 1; state.xp += characterXpRequired(state.level); } }
+function addStatXp(statKey, amount) { const stat = state.stats[statKey]; if (!stat) return; stat.xp += amount; while (stat.xp >= statXpRequired(stat.level)) { stat.xp -= statXpRequired(stat.level); stat.level += 1; } while (stat.level > 1 && stat.xp < 0) { stat.level -= 1; stat.xp += statXpRequired(stat.level); } }
+function localDateKey(date = new Date()) { const year = date.getFullYear(); const month = String(date.getMonth() + 1).padStart(2, '0'); const day = String(date.getDate()).padStart(2, '0'); return `${year}-${month}-${day}`; }
+function shiftDate(dateKey, amount) { const date = new Date(`${dateKey}T12:00:00`); date.setDate(date.getDate() + amount); return localDateKey(date); }
+function updateStreakForDate(dateKey) { if (state.lastActiveDate === dateKey) return; state.streak = state.lastActiveDate === shiftDate(dateKey, -1) ? state.streak + 1 : 1; state.lastActiveDate = dateKey; }
+function recalculateStreak() { const dates = [...new Set(state.completionHistory.map((event) => event.date))].sort(); if (!dates.length) { if (state.historyTracking) { state.streak = 0; state.lastActiveDate = null; } return; } let streak = 1; for (let index = dates.length - 1; index > 0 && dates[index] === shiftDate(dates[index - 1], 1); index -= 1) streak += 1; state.streak = streak; state.lastActiveDate = dates[dates.length - 1]; }
+function updateGreeting() { const hour = new Date().getHours(); setText('#greetingText', hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 18 ? 'Good afternoon' : 'Good evening'); setText('#dateLabel', new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: '2-digit' }).format(new Date()).toUpperCase()); }
+function totalQuestXp() { const historyQuestIds = new Set(state.completionHistory.map((event) => event.questId)); const historyXp = state.completionHistory.reduce((total, event) => total + event.statXp, 0); const legacyCompletedXp = state.quests.filter((quest) => quest.completed && !historyQuestIds.has(quest.id)).reduce((total, quest) => total + quest.xp, 0); return historyXp + legacyCompletedXp; }
 function render() {
-  $('#characterName').textContent = state.name;
-  $('#topbarName').textContent = state.name;
-  $('#heroName').textContent = state.name;
-  $('#levelLabel').textContent = state.level;
-  $('#topbarLevel').textContent = state.level;
-  $('#overviewLevel').textContent = state.level;
-  $('#xpLabel').textContent = state.xp;
-  $('#xpGoal').textContent = xpGoal();
-  $('#overviewXp').textContent = state.xp;
-  $('#overviewXpGoal').textContent = xpGoal();
-  $('#xpFill').style.width = `${Math.min((state.xp / xpGoal()) * 100, 100)}%`;
-  $('#overviewXpFill').style.width = `${Math.min((state.xp / xpGoal()) * 100, 100)}%`;
-  $('#nextLevelText').textContent = `${Math.max(xpGoal() - state.xp, 0)} XP until level ${state.level + 1}`;
-  $('#overviewNext').textContent = `${Math.max(xpGoal() - state.xp, 0)} XP until level ${state.level + 1}`;
-  $('#streakLabel').textContent = state.streak;
-  $('#overviewStreak').textContent = state.streak;
-  renderStats(); renderQuests(); renderCounts();
+  ['#characterName', '#topbarName', '#heroName'].forEach((selector) => setText(selector, state.name));
+  ['#levelLabel', '#topbarLevel', '#overviewLevel'].forEach((selector) => setText(selector, state.level));
+  setText('#xpLabel', state.xp); setText('#xpGoal', characterXpRequired(state.level)); setText('#overviewXp', state.xp); setText('#overviewXpGoal', characterXpRequired(state.level));
+  const progress = `${(state.xp / characterXpRequired(state.level)) * 100}%`; const xpFill = $('#xpFill'); const overviewXpFill = $('#overviewXpFill'); if (xpFill) xpFill.style.width = progress; if (overviewXpFill) overviewXpFill.style.width = progress;
+  setText('#nextLevelText', `${characterXpRequired(state.level) - state.xp} XP until level ${state.level + 1}`); setText('#overviewNext', `${characterXpRequired(state.level) - state.xp} XP until level ${state.level + 1}`); setText('#streakLabel', state.streak); setText('#overviewStreak', state.streak); setText('#goldLabel', state.gold);
+  renderStats(); renderDetailedStats(); renderCharacterOverview(); renderQuests(); renderCounts(); updateGreeting();
+  const achievementButton = $('#achievementTestButton'); if (achievementButton) { achievementButton.textContent = state.achievements.test ? 'Test achievement unlocked' : 'Unlock test achievement +25 XP · +10 gold'; achievementButton.disabled = state.achievements.test; }
 }
-function renderStats() {
-  $('#statsList').innerHTML = Object.entries(state.stats).map(([key, value]) => `<div class="stat-row"><span class="stat-symbol ${key}">${statInfo[key].symbol}</span><div><div class="stat-name">${statInfo[key].label}</div><div class="stat-bar"><span style="width:${Math.min(value * 10, 100)}%"></span></div></div><span class="stat-value">${String(value).padStart(2, '0')}</span></div>`).join('');
-}
-function renderQuests() {
-  const quests = state.quests.filter((quest) => activeFilter === 'all' || quest.category === activeFilter);
-  $('#questList').innerHTML = quests.map((quest) => `<article class="quest-card ${quest.completed ? 'completed' : ''}"><button class="quest-check" data-complete="${quest.id}" aria-label="${quest.completed ? 'Mark incomplete' : 'Complete'} quest">✓</button><div><div class="quest-category">${categoryLabels[quest.category]}</div><h3 class="quest-title">${escapeHtml(quest.title)}</h3><div class="quest-rewards"><span class="reward-tag xp">+${quest.xp} XP</span>${quest.stats.map((stat) => `<span class="reward-tag">+1 ${statInfo[stat].label}</span>`).join('')}</div></div><div class="quest-actions"><button class="delete-quest" data-delete="${quest.id}" aria-label="Delete quest">×</button></div></article>`).join('');
-  $('#emptyState').hidden = quests.length > 0;
-}
-function renderCounts() {
-  $('#allCount').textContent = state.quests.length;
-  ['daily', 'short', 'long'].forEach((category) => { $(`#${category}Count`).textContent = state.quests.filter((quest) => quest.category === category).length; });
-}
-function completeQuest(id) {
-  const quest = state.quests.find((item) => item.id === id);
-  if (!quest) return;
-  quest.completed = !quest.completed;
-  const amount = quest.completed ? 1 : -1;
-  state.xp += amount * quest.xp;
-  quest.stats.forEach((stat) => { state.stats[stat] = Math.max(1, state.stats[stat] + amount); });
-  if (quest.completed) state.streak += 1; else state.streak = Math.max(0, state.streak - 1);
-  while (state.xp >= xpGoal()) { state.xp -= xpGoal(); state.level += 1; }
-  while (state.level > 1 && state.xp < 0) { state.level -= 1; state.xp += xpGoal(); }
-  saveState(); render();
-  $('#insightText').textContent = quest.completed ? 'Nice. One deliberate action added to your character sheet.' : 'Quest reopened. Your next small action is still waiting.';
-}
-function openQuestDialog() {
-  const dialog = $('#questDialog');
-  $('#statCheckboxes').innerHTML = Object.entries(statInfo).map(([key, info]) => `<label class="stat-checkbox"><input type="checkbox" name="stat" value="${key}" /><span>${info.label}</span></label>`).join('');
-  dialog.showModal();
-}
-$('#questList').addEventListener('click', (event) => { const complete = event.target.closest('[data-complete]'); const remove = event.target.closest('[data-delete]'); if (complete) completeQuest(Number(complete.dataset.complete)); if (remove) { state.quests = state.quests.filter((quest) => quest.id !== Number(remove.dataset.delete)); saveState(); render(); } });
-$('.quest-tabs').addEventListener('click', (event) => { const tab = event.target.closest('.quest-tab'); if (!tab) return; activeFilter = tab.dataset.filter; document.querySelectorAll('.quest-tab').forEach((item) => item.classList.toggle('active', item === tab)); renderQuests(); });
-$('#addQuestButton').addEventListener('click', openQuestDialog);
-$('#questForm').addEventListener('submit', (event) => { event.preventDefault(); const stats = [...document.querySelectorAll('input[name="stat"]:checked')].map((input) => input.value); state.quests.unshift({ id: Date.now(), title: $('#questNameInput').value.trim(), category: $('#questCategoryInput').value, xp: Number($('#questXpInput').value), stats: stats.length ? stats : ['vitality'], completed: false }); saveState(); render(); $('#questDialog').close(); event.target.reset(); });
-$('#nameButton').addEventListener('click', () => { const name = prompt('What should your character be called?', state.name); if (name && name.trim()) { state.name = name.trim().slice(0, 20); saveState(); render(); } });
-$('#topbarCharacter').addEventListener('click', () => $('#nameButton').click());
-$('#resetButton').addEventListener('click', () => { if (confirm('Reset your character and quest progress?')) { state = structuredClone(defaultState); saveState(); render(); } });
-render();
+function renderStats() { const target = $('#statsList'); if (!target) return; target.innerHTML = Object.entries(state.stats).map(([key, stat]) => `<div class="stat-row"><span class="stat-symbol ${key}">${statInfo[key].symbol}</span><div><div class="stat-name">${statInfo[key].label} <strong>Lv ${stat.level}</strong></div><div class="stat-bar"><span style="width:${(stat.xp / statXpRequired(stat.level)) * 100}%"></span></div><div class="stat-xp-label">${stat.xp} / ${statXpRequired(stat.level)} XP</div></div><span class="stat-value">${stat.level}</span></div>`).join(''); }
+function renderDetailedStats() { const target = $('#detailedStatsList'); if (!target) return; setText('#statsTotalLevel', Object.values(state.stats).reduce((sum, stat) => sum + stat.level, 0)); target.innerHTML = Object.entries(state.stats).map(([key, stat]) => `<article class="detailed-stat-card" data-stat-history="${key}" tabindex="0" role="button" aria-expanded="false"><div class="detailed-stat-top"><span class="stat-symbol ${key}">${statInfo[key].symbol}</span><div><p class="eyebrow">CORE ATTRIBUTE</p><h3>${statInfo[key].label}</h3></div><strong class="detailed-level">${stat.level}</strong></div><div class="detailed-xp-row"><span>${stat.xp} / ${statXpRequired(stat.level)} XP</span><span>TO LEVEL ${stat.level + 1}</span></div><div class="detailed-progress"><span style="width:${(stat.xp / statXpRequired(stat.level)) * 100}%"></span></div><div class="stat-history" hidden></div></article>`).join(''); }
+function renderCharacterOverview() { const target = $('#statsCharacterOverview'); if (!target) return; const completed = state.quests.filter((quest) => quest.completed).length; const progress = (state.xp / characterXpRequired(state.level)) * 100; target.innerHTML = `<div class="character-overview-identity"><div class="avatar">⌁</div><div><p class="eyebrow">CHARACTER</p><h2>${escapeHtml(state.name)}</h2><p>The Curious · Level ${state.level}</p></div></div><div class="character-overview-level"><span class="overview-level-label">LEVEL</span><strong>${state.level}</strong></div><div class="character-overview-xp"><div class="detailed-xp-row"><span>${state.xp} / ${characterXpRequired(state.level)} XP</span><span>TO LEVEL ${state.level + 1}</span></div><div class="detailed-progress"><span style="width:${progress}%"></span></div></div><div class="character-overview-total-xp"><span>TOTAL XP</span><strong>${totalQuestXp()}</strong><small>LIFETIME QUEST XP</small></div><div class="character-overview-metrics"><span><strong>${completed}</strong> quests completed</span><span><strong>${state.streak}</strong> day streak</span></div>`; }
+function renderStatHistory(statKey, card) { const history = state.completionHistory.filter((event) => event.stat === statKey).sort((a, b) => b.timestamp - a.timestamp).slice(0, 8); const panel = card.querySelector('.stat-history'); panel.innerHTML = `<div class="history-heading">RECENT PROGRESS <span>${history.length} entries</span></div>${history.length ? history.map((event) => `<div class="history-row"><time>${event.date}</time><strong>+${event.statXp} XP</strong><span>${escapeHtml(event.questTitle)}</span></div>`).join('') : '<p class="history-empty">Complete a quest affecting this stat to start its history.</p>'}`; panel.hidden = !panel.hidden; card.setAttribute('aria-expanded', String(!panel.hidden)); }
+function renderQuests() { const target = $('#questList'); if (!target) return; const quests = state.quests.filter((quest) => activeFilter === 'all' || quest.category === activeFilter); target.innerHTML = quests.map((quest) => `<article class="quest-card ${quest.completed ? 'completed' : ''}"><button class="quest-check" data-complete="${quest.id}" aria-label="${quest.completed ? 'Mark incomplete' : 'Complete'} quest">✓</button><div><div class="quest-category">${categoryLabels[quest.category]} · ${quest.difficulty}</div><h3 class="quest-title">${escapeHtml(quest.title)}</h3><div class="quest-rewards"><span class="reward-tag xp">+${quest.xp} XP</span>${quest.stats.map((stat) => `<span class="reward-tag">${statInfo[stat].label} XP</span>`).join('')}</div></div><div class="quest-actions"><button class="delete-quest" data-delete="${quest.id}" aria-label="Delete quest">×</button></div></article>`).join(''); const empty = $('#emptyState'); if (empty) empty.hidden = quests.length > 0; }
+function renderCounts() { setText('#allCount', state.quests.length); ['daily', 'short', 'long'].forEach((category) => setText(`#${category}Count`, state.quests.filter((quest) => quest.category === category).length)); }
+function completeQuest(id) { const quest = state.quests.find((item) => item.id === id); if (!quest) return; const amount = quest.completed ? -1 : 1; quest.completed = !quest.completed; addCharacterXp(amount * quest.xp); const allocations = quest.statAllocations || allocateStatXp(quest.xp, quest.stats); if (amount > 0) { const date = localDateKey(); updateStreakForDate(date); state.historyTracking = true; Object.entries(allocations).forEach(([stat, xp]) => { addStatXp(stat, xp); state.completionHistory.push({ id: `${quest.id}-${Date.now()}-${stat}`, timestamp: Date.now(), date, questId: quest.id, questTitle: quest.title, xp: quest.xp, stat, statXp: xp }); }); } else { Object.entries(allocations).forEach(([stat, xp]) => addStatXp(stat, -xp)); state.completionHistory = state.completionHistory.filter((event) => event.questId !== quest.id); recalculateStreak(); } saveState(); render(); setText('#insightText', quest.completed ? 'Nice. One deliberate action added to your character sheet.' : 'Quest reopened. Your next small action is still waiting.'); }
+function fillDifficultyOptions() { const target = $('#questDifficultyInput'); if (target) target.innerHTML = Object.entries(difficultyXp).map(([key, xp]) => `<option value="${key}">${key[0].toUpperCase() + key.slice(1)} · ${xp} XP</option>`).join(''); }
+function updateRewardPreview() { const difficulty = $('#questDifficultyInput'); if (difficulty) setText('#difficultyXpLabel', `${getDifficultyXp(difficulty.value)} XP`); }
+function openQuestDialog() { const dialog = $('#questDialog'); if (!dialog) return; fillDifficultyOptions(); $('#questDifficultyInput').value = 'normal'; updateRewardPreview(); $('#statCheckboxes').innerHTML = Object.entries(statInfo).map(([key, info]) => `<label class="stat-checkbox"><input type="checkbox" name="stat" value="${key}" /><span>${info.label}</span></label>`).join(''); dialog.showModal(); }
+function closeQuestDialog() { const dialog = $('#questDialog'); if (dialog) { dialog.close(); $('#questForm').reset(); } }
+
+$('#questList')?.addEventListener('click', (event) => { const complete = event.target.closest('[data-complete]'); const remove = event.target.closest('[data-delete]'); if (complete) completeQuest(Number(complete.dataset.complete)); if (remove) { state.quests = state.quests.filter((quest) => quest.id !== Number(remove.dataset.delete)); saveState(); render(); } });
+$('.quest-tabs')?.addEventListener('click', (event) => { const tab = event.target.closest('.quest-tab'); if (!tab) return; activeFilter = tab.dataset.filter; document.querySelectorAll('.quest-tab').forEach((item) => item.classList.toggle('active', item === tab)); renderQuests(); });
+$('#detailedStatsList')?.addEventListener('click', (event) => { const card = event.target.closest('[data-stat-history]'); if (card) renderStatHistory(card.dataset.statHistory, card); });
+$('#detailedStatsList')?.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { const card = event.target.closest('[data-stat-history]'); if (card) { event.preventDefault(); renderStatHistory(card.dataset.statHistory, card); } } });
+$('#addQuestButton')?.addEventListener('click', openQuestDialog); $('#questDifficultyInput')?.addEventListener('change', updateRewardPreview); $('#closeQuestDialog')?.addEventListener('click', closeQuestDialog); $('#cancelQuestDialog')?.addEventListener('click', closeQuestDialog); $('#questDialog')?.addEventListener('click', (event) => { if (event.target === $('#questDialog')) closeQuestDialog(); }); $('#questDialog')?.addEventListener('cancel', (event) => { event.preventDefault(); closeQuestDialog(); }); document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && $('#questDialog')?.open) { event.preventDefault(); closeQuestDialog(); } });
+$('#questForm')?.addEventListener('submit', (event) => { event.preventDefault(); const stats = [...document.querySelectorAll('input[name="stat"]:checked')].map((input) => input.value); const difficulty = $('#questDifficultyInput').value; const xp = getDifficultyXp(difficulty); state.quests.unshift({ id: Date.now(), title: $('#questNameInput').value.trim(), category: $('#questCategoryInput').value, difficulty, xp, stats: stats.length ? stats : ['vitality'], statAllocations: allocateStatXp(xp, stats), completed: false }); saveState(); render(); closeQuestDialog(); });
+$('#nameButton')?.addEventListener('click', () => { const name = prompt('What should your character be called?', state.name); if (name && name.trim()) { state.name = name.trim().slice(0, 20); saveState(); render(); } }); $('#topbarCharacter')?.addEventListener('click', () => $('#nameButton')?.click());
+$('#achievementTestButton')?.addEventListener('click', () => { if (state.achievements.test) return; state.achievements.test = true; addCharacterXp(25); state.gold += 10; saveState(); render(); setText('#insightText', 'Test achievement unlocked. A small reward, a visible milestone.'); });
+$('#resetButton')?.addEventListener('click', () => { if (confirm('Reset your character and quest progress?')) { state = clone(defaultState); saveState(); render(); } });
+fillDifficultyOptions(); render();

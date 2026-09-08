@@ -13,17 +13,17 @@
   <body>
     <main class="app-shell">
       <aside class="sidebar">
-        <a class="brand" href="#top" aria-label="Life RPG home"><span class="brand-mark">✦</span><span>life<span class="brand-accent">/</span>rpg</span></a>
+        <a class="brand" href="index.html" aria-label="Life RPG home"><span class="brand-mark">✦</span><span>life<span class="brand-accent">/</span>rpg</span></a>
         <div class="sidebar-section-label">WORKSPACE</div>
         <nav class="sidebar-nav" aria-label="Main navigation">
-          <a class="nav-item active" href="#top"><span class="nav-icon">⌂</span>Dashboard</a>
-          <a class="nav-item" href="#quests"><span class="nav-icon">✓</span>Quests</a>
-          <a class="nav-item" href="#stats"><span class="nav-icon">◒</span>Stats</a>
-          <a class="nav-item" href="#journey"><span class="nav-icon">↗</span>Journey</a>
-          <a class="nav-item" href="#achievements"><span class="nav-icon">✦</span>Achievements</a>
+          <a class="nav-item active" href="index.html"><span class="nav-icon">⌂</span>Dashboard</a>
+          <a class="nav-item" href="quests.html"><span class="nav-icon">✓</span>Quests</a>
+          <a class="nav-item" href="stats.html"><span class="nav-icon">◒</span>Stats</a>
+          <a class="nav-item" href="journey.html"><span class="nav-icon">↗</span>Journey</a>
+          <a class="nav-item" href="achievements.html"><span class="nav-icon">✦</span>Achievements</a>
         </nav>
         <div class="sidebar-bottom">
-          <a class="nav-item" href="#settings"><span class="nav-icon">⚙</span>Settings</a>
+          <a class="nav-item" href="settings.html"><span class="nav-icon">⚙</span>Settings</a>
           <div class="sidebar-version">life/rpg <span>v0.1</span></div>
         </div>
       </aside>
@@ -40,19 +40,19 @@
         </header>
 
         <section class="hero" id="top">
-          <div class="hero-copy"><p class="eyebrow">TUESDAY, SEPTEMBER 08</p><h1>Good morning, <span id="heroName">Maya</span>.</h1><p class="hero-text">A clear day is a useful day. Here is where your real-world progress stands.</p></div>
+          <div class="hero-copy"><p class="eyebrow" id="dateLabel">TUESDAY, SEPTEMBER 08</p><h1><span id="greetingText">Good morning</span>, <span id="heroName">Maya</span>.</h1><p class="hero-text">A clear day is a useful day. Here is where your real-world progress stands.</p></div>
           <div class="command-hint"><span>⌘</span><span>Quick actions</span><kbd>⌘ K</kbd></div>
         </section>
 
         <section class="overview-grid" aria-label="Character overview">
           <article class="overview-card level-card"><div class="card-kicker">CURRENT LEVEL</div><div class="level-value"><strong id="overviewLevel">1</strong><span>LEVEL</span></div><div class="level-caption">Keep showing up. Consistency compounds.</div></article>
           <article class="overview-card xp-overview"><div class="card-kicker"><span>EXPERIENCE</span><span><span id="overviewXp">0</span> / <span id="overviewXpGoal">100</span> XP</span></div><div class="overview-progress"><span id="overviewXpFill"></span></div><div class="overview-footer"><span id="overviewNext">100 XP until level 2</span><span class="accent-text">+0 today</span></div></article>
-          <article class="overview-card stat-overview"><div class="card-kicker">STREAK</div><div class="streak-main"><strong id="overviewStreak">0</strong><span>days</span></div><div class="streak-dots"><i class="filled"></i><i class="filled"></i><i class="filled"></i><i></i><i></i><i></i><i></i></div><div class="level-caption">Build the chain, one action at a time.</div></article>
+          <article class="overview-card stat-overview"><div class="card-kicker">STREAK</div><div class="streak-main"><strong id="overviewStreak">0</strong><span>days</span></div><div class="level-caption">Build the chain, one action at a time.</div></article>
           <article class="overview-card gold-overview"><div class="card-kicker">GOLD</div><div class="gold-main"><span>◇</span><strong id="goldLabel">0</strong></div><div class="level-caption">Earned by completing quests.</div></article>
         </section>
 
-        <section class="dashboard-grid" aria-label="Character dashboard">
-        <aside class="character-panel panel" id="stats">
+        <section class="dashboard-grid" id="dashboardView" aria-label="Character dashboard">
+        <aside class="character-panel panel" id="statsPanel">
           <div class="panel-label"><span>CHARACTER SHEET</span><span class="online-dot"></span></div>
           <div class="avatar">⌁</div>
           <button class="name-button" id="nameButton" type="button" title="Change character name">
@@ -65,7 +65,7 @@
           </div>
           <div class="level-up-copy"><span class="spark">✦</span> <span id="nextLevelText">100 XP until level 2</span></div>
           <div class="divider"></div>
-          <div class="stats-heading"><span>CORE STATS</span><span class="stat-scale">01—10</span></div>
+          <div class="stats-heading"><span>CORE STATS</span><span class="stat-scale">NEXT LEVEL</span></div>
           <div class="stats-list" id="statsList"></div>
         </aside>
 
@@ -88,28 +88,20 @@
         </section>
       </section>
 
-      <section class="lower-grid">
-      <section class="insight-strip" id="journey">
-        <div class="insight-icon">↗</div>
-        <div><p class="eyebrow">A LITTLE MOMENTUM</p><p id="insightText">Your first quest is waiting. Make it almost too easy to begin.</p></div>
-        <div class="streak"><span class="streak-number" id="streakLabel">0</span><span>day streak</span></div>
-      </section>
-      <section class="activity-panel" id="achievements"><div class="panel-heading"><span>RECENT ACTIVITY</span><a href="#quests">View all</a></div><div class="activity-row"><span class="activity-icon">✓</span><div><strong>Quest log initialized</strong><small>Start your first action to see it here</small></div><time>now</time></div><div class="activity-row"><span class="activity-icon muted-icon">↗</span><div><strong>Character created</strong><small>Welcome to life/rpg</small></div><time>today</time></div></section>
-      </section>
-
       <footer><span>life/rpg v0.1</span><span>Local workspace · All changes saved automatically</span><span id="settings">Settings</span></footer>
       </div>
     </main>
 
     <dialog id="questDialog">
       <form method="dialog" id="questForm" class="dialog-card">
-        <button class="dialog-close" value="cancel" aria-label="Close">×</button>
+        <button class="dialog-close" id="closeQuestDialog" value="cancel" aria-label="Close">×</button>
         <p class="eyebrow">NEW QUEST</p>
         <h2>Add something worth doing.</h2>
         <label>Quest name<input id="questNameInput" required maxlength="52" placeholder="e.g. Take a 20 minute walk" /></label>
-        <div class="form-row"><label>Category<select id="questCategoryInput"><option value="daily">Daily</option><option value="short">Short term</option><option value="long">Long term</option></select></label><label>XP reward<input id="questXpInput" type="number" min="5" max="500" value="25" required /></label></div>
-        <fieldset><legend>Stat rewards</legend><div class="stat-checkboxes" id="statCheckboxes"></div></fieldset>
-        <button class="primary-button" value="default">Create quest <span>↗</span></button>
+        <div class="form-row"><label>Category<select id="questCategoryInput"><option value="daily">Daily</option><option value="short">Short term</option><option value="long">Long term</option></select></label><label>Difficulty<select id="questDifficultyInput"></select></label></div>
+        <div class="reward-preview"><span>QUEST REWARD</span><strong id="difficultyXpLabel">25 XP</strong></div>
+        <fieldset><legend>Stat rewards <small>XP is split evenly across selected stats</small></legend><div class="stat-checkboxes" id="statCheckboxes"></div></fieldset>
+        <div class="dialog-actions"><button class="cancel-button" id="cancelQuestDialog" type="button">Cancel</button><button class="primary-button" value="default">Create quest <span>↗</span></button></div>
       </form>
     </dialog>
 
